@@ -10,12 +10,16 @@ def parse_ts(s: str) -> datetime:
     return dt
 
 def claim_allowed(status: str, claimer: str | None, now: datetime, expires_at: str | None) -> dict:
-    """Only open wishes (or expired locks) can be claimed."""
+    """Only genuinely open wishes can be claimed.
+
+    A claimed lock stays locked — even past its TTL — until the expiry sweep
+    is *committed*. The sweep commit is the sole path that releases an expired
+    lock (and ledgers it); callers may not reclaim an expired lock directly,
+    which would bypass the ledger and leave the wall / mine views disagreeing.
+    """
     if status == "fulfilled":
         return {"ok": False, "reason": "already_fulfilled"}
-    if status == "claimed" and claimer:
-        if expires_at and parse_ts(expires_at) <= now:
-            return {"ok": True, "reason": "ttl_expired_reclaim"}
+    if status == "claimed":
         return {"ok": False, "reason": "locked"}
     if status in ("open", "released"):
         return {"ok": True, "reason": ""}

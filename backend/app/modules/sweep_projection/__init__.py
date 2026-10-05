@@ -10,13 +10,14 @@ def wall_rows(c, now) -> list[dict]:
     released a prior lock, the batch that did it (`released_batch_id`)."""
     last_batch_by_wish = {}
     for row in release_ledger.list_rows(c):
+        # list_rows is newest-first; keep the first (latest) batch per wish.
         last_batch_by_wish.setdefault(row["wish_id"], row["batch_id"])
 
     rows = []
     for r in c.execute("SELECT * FROM wishes ORDER BY id DESC"):
         d = dict(r)
         d["claimable"] = claim_allowed(d["status"], d["claimer"], now, d["expires_at"])["ok"]
-        d["released_batch_id"] = None
+        d["released_batch_id"] = last_batch_by_wish.get(d["id"])
         rows.append(d)
     return rows
 
