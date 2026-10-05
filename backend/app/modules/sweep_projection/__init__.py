@@ -16,7 +16,10 @@ def wall_rows(c, now) -> list[dict]:
     for r in c.execute("SELECT * FROM wishes ORDER BY id DESC"):
         d = dict(r)
         d["claimable"] = claim_allowed(d["status"], d["claimer"], now, d["expires_at"])["ok"]
-        d["released_batch_id"] = None
+        # Same single source of truth as the ledger page and the detail
+        # events: a card shows the batch ONLY if the ledger has that release.
+        # Manually released rows are absent from the ledger -> None here.
+        d["released_batch_id"] = last_batch_by_wish.get(d["id"])
         rows.append(d)
     return rows
 

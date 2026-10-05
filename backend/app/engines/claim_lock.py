@@ -10,12 +10,17 @@ def parse_ts(s: str) -> datetime:
     return dt
 
 def claim_allowed(status: str, claimer: str | None, now: datetime, expires_at: str | None) -> dict:
-    """Only open wishes (or expired locks) can be claimed."""
+    """Only genuinely open wishes can be claimed.
+
+    An expired-but-un-swept lock is STILL locked: TTL expiry alone never
+    frees a wish. Release happens either via a sweep *commit* (which sets
+    status='open' and ledger rows) or via manual release (status='released').
+    This keeps the wall card reading 锁定中 after a dry-run; it flips to
+    可认领 only after the commit actually opens the row.
+    """
     if status == "fulfilled":
         return {"ok": False, "reason": "already_fulfilled"}
-    if status == "claimed" and claimer:
-        if expires_at and parse_ts(expires_at) <= now:
-            return {"ok": True, "reason": "ttl_expired_reclaim"}
+    if status == "claimed":
         return {"ok": False, "reason": "locked"}
     if status in ("open", "released"):
         return {"ok": True, "reason": ""}
